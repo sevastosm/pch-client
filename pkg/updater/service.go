@@ -1,7 +1,6 @@
 package updater
 
 import (
-	"github.com/sermojohn/postgres-client/pkg/config"
 	"github.com/sermojohn/postgres-client/pkg/parser"
 	"github.com/sermojohn/postgres-client/pkg/storage"
 	"log"
@@ -11,24 +10,22 @@ type Updater interface {
 	UpdateSummaries() error
 }
 
-func New(store storage.Store, parser parser.IXPParser, config config.UpdateConfig) Updater {
+func New(store storage.Store, parser parser.IXPParser) Updater {
 	return &updater{
 		store:  store,
 		parser: parser,
-		config: config,
 	}
 }
 
 type updater struct {
 	store  storage.Store
 	parser parser.IXPParser
-	config config.UpdateConfig
 }
 
 func (upd *updater) UpdateSummaries() error {
-	err := upd.parser.ForEachSummary(upd.config.AmountOfServers, upd.config.ParserRateLimitDelayMillis, func(resp *parser.FetchResponse) error {
-		if err := upd.store.UpsertSummary(resp.Server.IXPServer, resp.Summary); err != nil {
-			return err
+	err := upd.parser.ForEachSummary(func(resp *parser.FetchResponse) error {
+		if err2 := upd.store.UpsertSummary(resp.Server.IXPServer, resp.Summary); err2 != nil {
+			log.Printf("[updater] failed to update BGP summary for %s, error: %v\n", resp.Server.IXPServer.IXP, err2)
 		}
 		return nil
 	})
@@ -36,6 +33,5 @@ func (upd *updater) UpdateSummaries() error {
 		return err
 	}
 
-	log.Printf("[updater] updated %d BGP summaries", upd.config.AmountOfServers)
 	return nil
 }

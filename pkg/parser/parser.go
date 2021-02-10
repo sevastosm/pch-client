@@ -29,16 +29,16 @@ type IXPParser interface {
 	// FetchIXPData fetches and extracts IXP entry data for specified options
 	FetchIXPData(nonce Nonce, option IXPServerOption) (*FetchResponse, error)
 	// ForEachSummary fetch and process summaries
-	ForEachSummary(amount int, delayMillis int64, processor func(response *FetchResponse) error) error
+	ForEachSummary(processor func(response *FetchResponse) error) error
 }
 
-func New(cl *http.Client, config config.ParserConfig) IXPParser {
+func New(cl *http.Client, config config.ClientConfig) IXPParser {
 	return &ixpParser{hc: cl, config: config}
 }
 
 type ixpParser struct {
 	hc     *http.Client
-	config config.ParserConfig
+	config config.ClientConfig
 }
 
 func (is *ixpParser) InitIXPServers() (*InitResponse, error) {
@@ -73,9 +73,9 @@ func (is *ixpParser) InitIXPServers() (*InitResponse, error) {
 			optionID, _ := strconv.Atoi(optionValue)
 			option := IXPServerOption{
 				IXPServer: domain.IXPServer{
-					IXP:     optionContent[0],
-					City:    optionContent[1],
-					Country: optionContent[2],
+					IXP:     strings.TrimSpace(optionContent[0]),
+					City:    strings.TrimSpace(optionContent[1]),
+					Country: strings.TrimSpace(optionContent[2]),
 				},
 				ItemID: optionID,
 			}
@@ -148,24 +148,28 @@ func (ip *ixpParser) FetchIXPData(nonce Nonce, server IXPServerOption) (*FetchRe
 	}, nil
 }
 
-func (ip *ixpParser) ForEachSummary(amount int, delayMillis int64, proc func(response *FetchResponse) error) error {
+func (ip *ixpParser) ForEachSummary(proc func(response *FetchResponse) error) error {
 	initResp, err := ip.InitIXPServers()
 	if err != nil {
 		return err
 	}
 
 	nonce := initResp.Nonce
-	for _, server := range selectServers(amount, initResp.Servers) {
+	for _, server := range filterServers(initResp.Servers, ip.config) {
 		fetchResp, err := ip.FetchIXPData(nonce, server)
 		if err != nil {
 			return err
+		}
+		// skip failure to fetch data
+		if fetchResp == nil {
+			continue
 		}
 
 		err = proc(fetchResp)
 		if err != nil {
 			return err
 		}
-		applyDelay(delayMillis)
+		applyDelay(ip.config.ParserRateLimitDelayMillis)
 		nonce = fetchResp.Nonce
 	}
 	return nil
@@ -178,16 +182,33 @@ func applyDelay(delayMillis int64) {
 	}
 }
 
-func selectServers(amount int, servers []IXPServerOption) []IXPServerOption {
-	if amount == 0 {
-		return servers
+func filterServers(servers IXPServerOptions, clientConfig config.ClientConfig) []IXPServerOption {
+	if ixp := clientConfig.IXP; ixp != "" {
+		servers = servers.filterBy(func(opt *IXPServerOption) bool {
+			return strings.ToLower(opt.IXP) == strings.ToLower(ixp)
+		})
 	}
 
-	if amount > len(servers) {
-		return servers
+	if city := clientConfig.City; city != "" {
+		servers = servers.filterBy(func(opt *IXPServerOption) bool {
+			return strings.ToLower(opt.City) == strings.ToLower(city)
+		})
 	}
 
-	return servers[:amount]
+	if country := clientConfig.Country; country != "" {
+		servers = servers.filterBy(func(opt *IXPServerOption) bool {
+			return strings.ToLower(opt.Country) == strings.ToLower(country)
+		})
+	}
+
+	if limit := clientConfig.ServerLimit; limit > 0 {
+		if limit < len(servers) {
+			servers = servers[:clientConfig.ServerLimit]
+		}
+	}
+
+	log.Printf("[parser] filtered IXP servers to size %d\n", len(servers))
+	return servers
 }
 
 func downloadFileAndRead(response *http.Response) ([]byte, error) {

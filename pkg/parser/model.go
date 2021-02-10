@@ -12,6 +12,20 @@ type IXPServerOption struct {
 	ItemID int
 }
 
+type IXPServerOptions []IXPServerOption
+
+func (opts IXPServerOptions) filterBy(filter func(option *IXPServerOption) bool) IXPServerOptions {
+	var out IXPServerOptions
+
+	for _, opt := range opts {
+		if filter(&opt) {
+			out = append(out, opt)
+		}
+	}
+
+	return out
+}
+
 type FetchResponse struct {
 	Server  IXPServerOption
 	Summary domain.BGPSummary

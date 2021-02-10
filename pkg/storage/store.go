@@ -92,5 +92,11 @@ func New(dbc config.DBConfig) (Store, error) {
 		return nil, err
 	}
 
+	s := &store{db: db}
+	_, err = s.SelectAllSummaries()
+	if err != nil {
+		return nil, err
+	}
+
 	return &store{db: db}, nil
 }
