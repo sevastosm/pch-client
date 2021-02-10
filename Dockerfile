@@ -3,7 +3,7 @@ FROM golang:1.12-alpine
 RUN apk add --no-cache git
 RUN apk add --no-cache --upgrade bash
 
-WORKDIR /pch-parser
+WORKDIR /pch-client
 
 COPY go.mod .
 COPY go.sum .
