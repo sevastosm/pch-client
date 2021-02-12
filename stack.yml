@@ -11,8 +11,8 @@ services:
       POSTGRES_USER: ioannis
       POSTGRES_DB: ioannisdb
     volumes:
-      - ./dbdata:/var/lib/postgresql/data
-      - ./dbscripts:/docker-entrypoint-initdb.d
+      - ./db/data:/var/lib/postgresql/data
+      - ./db/scripts:/docker-entrypoint-initdb.d
     ports:
       - 5432:5432
 

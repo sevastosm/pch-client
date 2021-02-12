@@ -5,8 +5,7 @@ RUN apk add --no-cache --upgrade bash
 
 WORKDIR /pch-client
 
-COPY go.mod .
-COPY go.sum .
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
