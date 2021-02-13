@@ -13,7 +13,7 @@ import (
 func TestIxpParser_InitIXPOptions(t *testing.T) {
 	t.Parallel()
 
-	p := &ixpParser{hc: &http.Client{}}
+	p := &pchParser{hc: &http.Client{}}
 
 	options, err := p.InitIXPServers()
 	require.NoError(t, err)
@@ -25,14 +25,14 @@ func TestIxpParser_InitIXPOptions(t *testing.T) {
 func TestIxpParser_FetchIXPData(t *testing.T) {
 	t.Parallel()
 
-	p := &ixpParser{hc: &http.Client{}}
+	p := &pchParser{hc: &http.Client{}}
 
 	options, err := p.InitIXPServers()
 	require.NoError(t, err)
 
 	nonce := options.Nonce
 	for _, opt := range options.Servers[0:5] {
-		data, err := p.FetchIXPData(nonce, opt)
+		data, err := p.fetchServerData(nonce, opt)
 		assert.NoError(t, err)
 		assert.True(t, len(nonce) > 0, "expected non empty nonce")
 		t.Logf("params:%+v, summary: %+v", opt, data)

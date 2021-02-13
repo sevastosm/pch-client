@@ -2,4 +2,4 @@ version: 2
 tables:
 - table:
     schema: public
-    name: ixp_monitoring_data_v2
+    name: ixp_server_data

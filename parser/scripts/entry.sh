@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/bin/sh
+
+trap "echo TRAPed signal" HUP INT QUIT TERM
 
 CMD=${PARSER:-"go run ./cmd/parser/main.go"}
 PARAMS="-db.host=${DB_HOST:-localhost}"

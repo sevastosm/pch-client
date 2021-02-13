@@ -1,4 +1,4 @@
-package updater
+package synchroniser
 
 import (
 	"github.com/sermojohn/postgres-client/pkg/parser"
@@ -6,32 +6,30 @@ import (
 	"log"
 )
 
-type Updater interface {
-	UpdateSummaries() error
+// Synchroniser triggers parser to fetch data and storage component to store
+type Synchroniser interface {
+	UpdateSummaries()
 }
 
-func New(store storage.Store, parser parser.IXPParser) Updater {
-	return &updater{
+func New(store storage.Store, parser parser.PCHParser) Synchroniser {
+	return &synchroniser{
 		store:  store,
 		parser: parser,
 	}
 }
 
-type updater struct {
+type synchroniser struct {
 	store  storage.Store
-	parser parser.IXPParser
+	parser parser.PCHParser
 }
 
-func (upd *updater) UpdateSummaries() error {
-	err := upd.parser.ForEachSummary(func(resp *parser.FetchResponse) error {
+func (upd *synchroniser) UpdateSummaries() {
+	err := upd.parser.FetchSummaries(func(resp *parser.FetchResponse) {
 		if err2 := upd.store.UpsertSummary(resp.Server.IXPServer, resp.Summary); err2 != nil {
-			log.Printf("[updater] failed to update BGP summary for %s, error: %v\n", resp.Server.IXPServer.IXP, err2)
+			log.Printf("[synchroniser] failed to update BGP summary for %s, error: %v\n", resp.Server.IXPServer.IXP, err2)
 		}
-		return nil
 	})
 	if err != nil {
-		return err
+		log.Printf("[synchroniser] failed to fetch BGP summaries, error: %v\n", err)
 	}
-
-	return nil
 }

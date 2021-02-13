@@ -5,7 +5,7 @@ import (
 	"github.com/sermojohn/postgres-client/pkg/config"
 	"github.com/sermojohn/postgres-client/pkg/parser"
 	"github.com/sermojohn/postgres-client/pkg/storage"
-	"github.com/sermojohn/postgres-client/pkg/updater"
+	"github.com/sermojohn/postgres-client/pkg/synchroniser"
 	"log"
 	"net/http"
 	"os"
@@ -37,9 +37,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sync := updater.New(store, parser.New(&http.Client{}, clientConfig))
-	err = sync.UpdateSummaries()
-	if err != nil {
-		log.Printf("failed to update summaries with error %v", err)
-	}
+	synchroniser.New(store, parser.New(&http.Client{}, clientConfig)).UpdateSummaries()
 }

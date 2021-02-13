@@ -2,7 +2,6 @@ package parser
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/sermojohn/postgres-client/pkg/config"
@@ -23,25 +22,46 @@ const (
 	PCHQueryURL = "https://www.pch.net/tools/looking_glass_query"
 )
 
-type IXPParser interface {
-	// InitIXPServers config data for requesting actual IXP data
-	InitIXPServers() (*InitResponse, error)
-	// FetchIXPData fetches and extracts IXP entry data for specified options
-	FetchIXPData(nonce Nonce, option IXPServerOption) (*FetchResponse, error)
-	// ForEachSummary fetch and process summaries
-	ForEachSummary(processor func(response *FetchResponse) error) error
+// PCHParser fetch data from PCH extracts data and triggers their processing
+type PCHParser interface {
+	// FetchSummaries fetch summaries and trigger processing
+	FetchSummaries(processor func(response *FetchResponse)) error
 }
 
-func New(cl *http.Client, config config.ClientConfig) IXPParser {
-	return &ixpParser{hc: cl, config: config}
+func New(cl *http.Client, config config.ClientConfig) PCHParser {
+	return &pchParser{hc: cl, config: config}
 }
 
-type ixpParser struct {
+type pchParser struct {
 	hc     *http.Client
 	config config.ClientConfig
 }
 
-func (is *ixpParser) InitIXPServers() (*InitResponse, error) {
+func (ip *pchParser) FetchSummaries(proc func(response *FetchResponse)) error {
+	initResp, err := ip.initRequest()
+	if err != nil {
+		return err
+	}
+
+	nonce := initResp.Nonce
+	for _, server := range filterServers(initResp.Servers, ip.config) {
+		fetchResp, err := ip.fetchServerData(nonce, server)
+		if err != nil {
+			return err
+		}
+		// skip failure to fetch data
+		if fetchResp == nil {
+			continue
+		}
+
+		proc(fetchResp)
+		applyDelay(ip.config.ParserRateLimitDelayMillis)
+		nonce = fetchResp.Nonce
+	}
+	return nil
+}
+
+func (p *pchParser) initRequest() (*InitResponse, error) {
 	res, err := http.Get(PCHInitURL)
 	if err != nil {
 		return nil, err
@@ -49,7 +69,7 @@ func (is *ixpParser) InitIXPServers() (*InitResponse, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
+		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
 	}
 
 	var output InitResponse
@@ -60,7 +80,7 @@ func (is *ixpParser) InitIXPServers() (*InitResponse, error) {
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	// Find the IXP options
@@ -73,9 +93,10 @@ func (is *ixpParser) InitIXPServers() (*InitResponse, error) {
 			optionID, _ := strconv.Atoi(optionValue)
 			option := IXPServerOption{
 				IXPServer: domain.IXPServer{
-					IXP:     strings.TrimSpace(optionContent[0]),
-					City:    strings.TrimSpace(optionContent[1]),
-					Country: strings.TrimSpace(optionContent[2]),
+					IXP:      strings.TrimSpace(optionContent[0]),
+					City:     strings.TrimSpace(optionContent[1]),
+					Country:  strings.TrimSpace(optionContent[2]),
+					Protocol: p.config.IPVersion,
 				},
 				ItemID: optionID,
 			}
@@ -87,18 +108,16 @@ func (is *ixpParser) InitIXPServers() (*InitResponse, error) {
 	return &output, nil
 }
 
-func (ip *ixpParser) FetchIXPData(nonce Nonce, server IXPServerOption) (*FetchResponse, error) {
+func (p *pchParser) fetchServerData(nonce Nonce, server IXPServerOption) (*FetchResponse, error) {
 	params := url.Values{}
 	params.Add("router", strconv.Itoa(server.ItemID))
 	params.Add("pch_nonce", string(nonce))
 	params.Add("args", "")
-	switch ip.config.IPVersion{
-	case "v6":
+
+	if p.config.IPVersion == config.IPv6 {
 		params.Add("query", "v6_summary")
-	case "v4":
+	} else {
 		params.Add("query", "summary")
-	default:
-		return nil, errors.New("invalid IP version")
 	}
 
 	reqURL, err := url.Parse(PCHQueryURL)
@@ -115,7 +134,7 @@ func (ip *ixpParser) FetchIXPData(nonce Nonce, server IXPServerOption) (*FetchRe
 		Name:  "pch_nonce" + string(nonce),
 		Value: string(nonce),
 	})
-	res, err := ip.hc.Do(req)
+	res, err := p.hc.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -131,48 +150,22 @@ func (ip *ixpParser) FetchIXPData(nonce Nonce, server IXPServerOption) (*FetchRe
 	}
 
 	if len(results) != 1 {
-		return nil, errors.New("expected single result")
+		log.Println("[parser] expected single result - skipping")
+		return nil, nil
 	}
 
 	summary, err := ExtractIXPSummary(results[0].Result)
 	if err != nil {
-		log.Printf("failed to extract summary, error: %v\n", err)
+		log.Printf("[parser] failed to extract summary, error: %v\n", err)
 		return nil, nil
 	}
 
-	log.Printf("[parser] received summary for IXP: %v, IP: %s", server, ip.config.IPVersion)
+	log.Printf("[parser] received summary for IXP: %v, IP: %s\n", server, p.config.IPVersion)
 	return &FetchResponse{
 		Server:  server,
 		Summary: *summary,
 		Nonce:   nonce,
 	}, nil
-}
-
-func (ip *ixpParser) ForEachSummary(proc func(response *FetchResponse) error) error {
-	initResp, err := ip.InitIXPServers()
-	if err != nil {
-		return err
-	}
-
-	nonce := initResp.Nonce
-	for _, server := range filterServers(initResp.Servers, ip.config) {
-		fetchResp, err := ip.FetchIXPData(nonce, server)
-		if err != nil {
-			return err
-		}
-		// skip failure to fetch data
-		if fetchResp == nil {
-			continue
-		}
-
-		err = proc(fetchResp)
-		if err != nil {
-			return err
-		}
-		applyDelay(ip.config.ParserRateLimitDelayMillis)
-		nonce = fetchResp.Nonce
-	}
-	return nil
 }
 
 func applyDelay(delayMillis int64) {
@@ -228,5 +221,4 @@ func downloadFileAndRead(response *http.Response) ([]byte, error) {
 	}
 
 	return ioutil.ReadFile(f.Name())
-
 }

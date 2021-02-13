@@ -6,7 +6,7 @@ import (
 )
 
 type SummaryRow struct {
-	Server  domain.IXPServer
-	Summary domain.BGPSummary
-	Updated time.Time
+	Server    domain.IXPServer
+	Summary   domain.BGPSummary
+	UpdatedAt time.Time
 }
