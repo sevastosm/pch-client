@@ -28,13 +28,13 @@ type PCHParser interface {
 	FetchSummaries(processor func(response *FetchResponse)) error
 }
 
-func New(cl *http.Client, config config.ClientConfig) PCHParser {
+func New(cl *http.Client, config config.ParserConfig) PCHParser {
 	return &pchParser{hc: cl, config: config}
 }
 
 type pchParser struct {
 	hc     *http.Client
-	config config.ClientConfig
+	config config.ParserConfig
 }
 
 func (ip *pchParser) FetchSummaries(proc func(response *FetchResponse)) error {
@@ -96,7 +96,7 @@ func (p *pchParser) initRequest() (*InitResponse, error) {
 					IXP:      strings.TrimSpace(optionContent[0]),
 					City:     strings.TrimSpace(optionContent[1]),
 					Country:  strings.TrimSpace(optionContent[2]),
-					Protocol: p.config.IPVersion,
+					Protocol: p.config.Protocol,
 				},
 				ItemID: optionID,
 			}
@@ -114,7 +114,7 @@ func (p *pchParser) fetchServerData(nonce Nonce, server IXPServerOption) (*Fetch
 	params.Add("pch_nonce", string(nonce))
 	params.Add("args", "")
 
-	if p.config.IPVersion == config.IPv6 {
+	if p.config.Protocol == config.IPv6 {
 		params.Add("query", "v6_summary")
 	} else {
 		params.Add("query", "summary")
@@ -160,7 +160,7 @@ func (p *pchParser) fetchServerData(nonce Nonce, server IXPServerOption) (*Fetch
 		return nil, nil
 	}
 
-	log.Printf("[parser] received summary for IXP: %v, IP: %s\n", server, p.config.IPVersion)
+	log.Printf("[parser] received summary for IXP: %v, IP: %s\n", server, p.config.Protocol)
 	return &FetchResponse{
 		Server:  server,
 		Summary: *summary,
@@ -173,35 +173,6 @@ func applyDelay(delayMillis int64) {
 		log.Printf("[parser] delay %dms", delayMillis)
 		time.Sleep(time.Duration(delayMillis) * time.Millisecond)
 	}
-}
-
-func filterServers(servers IXPServerOptions, clientConfig config.ClientConfig) []IXPServerOption {
-	if ixp := clientConfig.IXP; ixp != "" {
-		servers = servers.filterBy(func(opt *IXPServerOption) bool {
-			return strings.ToLower(opt.IXP) == strings.ToLower(ixp)
-		})
-	}
-
-	if city := clientConfig.City; city != "" {
-		servers = servers.filterBy(func(opt *IXPServerOption) bool {
-			return strings.ToLower(opt.City) == strings.ToLower(city)
-		})
-	}
-
-	if country := clientConfig.Country; country != "" {
-		servers = servers.filterBy(func(opt *IXPServerOption) bool {
-			return strings.ToLower(opt.Country) == strings.ToLower(country)
-		})
-	}
-
-	if limit := clientConfig.ServerLimit; limit > 0 {
-		if limit < len(servers) {
-			servers = servers[:clientConfig.ServerLimit]
-		}
-	}
-
-	log.Printf("[parser] filtered IXP servers to size %d\n", len(servers))
-	return servers
 }
 
 func downloadFileAndRead(response *http.Response) ([]byte, error) {

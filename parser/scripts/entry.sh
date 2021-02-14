@@ -1,11 +1,10 @@
 #!/bin/sh
 
-trap "echo TRAPed signal" HUP INT QUIT TERM
+trap exit HUP INT QUIT TERM
 
-CMD=${PARSER:-"go run ./cmd/parser/main.go"}
-PARAMS="-db.host=${DB_HOST:-localhost}"
-INTERVAL=$1
-INTERVAL=${INTERVAL:-10}
+CMD="go run ./cmd/parser/main.go"
+PARAMS="-config=/config/parser.yml"
+INTERVAL=${PARSER_RUN_EVERY_SEC:-10}
 
 # run job
 while true; do ($CMD $PARAMS); sleep $INTERVAL; done

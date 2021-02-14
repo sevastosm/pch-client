@@ -1,0 +1,29 @@
+db:
+  host: db
+  port: 5432
+  user: ioannis
+  password: ioannissecret
+  database: ioannisdb
+
+parser:
+  server_limit: 50
+  protocol: IPv6
+  ixp:
+  - DE-CIX Marseille
+  - SOX
+  city:
+  - Belgrade
+  - Marseille
+  country:
+  - France
+  - Austria
+  - Germany
+  - Italy
+  - Serbia
+  - Spain
+  - Belgium
+  - Luxemburg
+  - Switcherland
+  - Poland
+  - Ukrain
+  - Russia

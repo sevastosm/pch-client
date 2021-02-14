@@ -28,7 +28,7 @@ type store struct {
 func New(dbc config.DBConfig) (Store, error) {
 	pgConn := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
-		dbc.Host, dbc.Port, dbc.User, dbc.Password, dbc.Name)
+		dbc.Host, dbc.Port, dbc.User, dbc.Password, dbc.Database)
 
 	db, err := sql.Open("postgres", pgConn)
 	if err != nil {
