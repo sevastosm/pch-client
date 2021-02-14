@@ -12,15 +12,13 @@ services:
     volumes:
       - ./db/data:/var/lib/postgresql/data
       - ./db/scripts:/docker-entrypoint-initdb.d
-    ports:
-      - 5432:5432
 
   graphql-engine:
     image: hasura/graphql-engine:v1.3.3.cli-migrations
     ports:
-    - "8082:8080"
+    - 8001:8080
     depends_on:
-    - "db"
+    - db
     restart: always
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://ioannis:ioannissecret@db:5432/ioannisdb
@@ -39,11 +37,13 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     ports:
-    - "8083:80"
+    - 8000:80
+    depends_on:
+    - graphql-engine
 
   parser:
     build:
       context: ./parser
       dockerfile: Dockerfile
-    environment:
-      DB_HOST: "db"
+    volumes:
+    - ./parser/config:/config
