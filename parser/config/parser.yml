@@ -7,23 +7,7 @@ db:
 
 parser:
   server_limit: 50
-  protocol: IPv6
+  protocol: IPv4 # IPv4 or IPv6
   ixp:
-  - DE-CIX Marseille
-  - SOX
   city:
-  - Belgrade
-  - Marseille
   country:
-  - France
-  - Austria
-  - Germany
-  - Italy
-  - Serbia
-  - Spain
-  - Belgium
-  - Luxemburg
-  - Switcherland
-  - Poland
-  - Ukrain
-  - Russia
