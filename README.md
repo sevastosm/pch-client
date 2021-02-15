@@ -7,7 +7,8 @@ using `metadata` in order to monitor the `IXP_SERVER_DATA` table.
 
 Parser client is used for updating database with IXP monitoring data from PCH. A bash script ran as
 docker container entry point initiates the parser client every 10 seconds. The client fetches and 
-updates records in the `IXP_SERVER_DATA` table.
+updates records in the `IXP_SERVER_DATA` table. The parser is configured by default a YAML file
+`./parser/config/parser.yml`
 
 UI service contains a React app which is served using nginx. The JS application is using Apollo 
 GraphQL library to connect to Hasura and update UI with realtime data.
