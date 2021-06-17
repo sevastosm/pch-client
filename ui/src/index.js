@@ -8,7 +8,6 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { WebSocketLink } from '@apollo/client/link/ws';
 
 const wsLink = new WebSocketLink({
-  // TODO: graphql should be set externally
   uri: 'ws://localhost:8001/v1/graphql',
   options: {
     reconnect: true
@@ -16,7 +15,6 @@ const wsLink = new WebSocketLink({
 });
 
 const httpLink = new HttpLink({
-  // TODO: graphql should be set externally
   uri: 'http://localhost:8001/v1/graphql'
 });
 
