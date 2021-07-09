@@ -6,7 +6,7 @@ services:
     image: postgres
     restart: always
     environment:
-      POSTGRES_PASSWORD: ioannissecret 
+      POSTGRES_PASSWORD: ioannissecret
       POSTGRES_USER: ioannis
       POSTGRES_DB: ioannisdb
     volumes:
@@ -31,7 +31,7 @@ services:
       # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
     volumes:
       - ./hasura/migrations:/hasura-migrations
-  
+
   ui:
     build:
       context: ./ui
@@ -41,9 +41,26 @@ services:
     depends_on:
     - graphql-engine
 
+
   parser:
     build:
       context: ./parser
       dockerfile: Dockerfile
     volumes:
     - ./parser/config:/config
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: nodejs
+    container_name: pch-nodejs
+    restart: always
+    volumes:
+      - ./server/src:/home/node/app/src
+      - ./server/nodemon.json:/home/node/app/nodemon.json
+    expose:
+      - '3000'
+    ports:
+      - '8002:3000'
+    command: npm run dev

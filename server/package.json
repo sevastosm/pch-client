@@ -1,0 +1,23 @@
+{
+  "name": "server",
+  "version": "0.0.1",
+  "description": "Awesome project developed with TypeORM.",
+  "devDependencies": {
+    "@types/node": "^8.0.29",
+    "nodemon": "^2.0.10",
+    "ts-node": "3.3.0",
+    "typescript": "3.3.3333"
+  },
+  "dependencies": {
+    "body-parser": "^1.18.1",
+    "express": "^4.15.4",
+    "pg": "^8.4.0",
+    "reflect-metadata": "^0.1.10",
+    "typeorm": "0.2.34"
+  },
+  "scripts": {
+    "start": "NODE_PATH=./build node build/index.js",
+    "build": "tsc -p .",
+    "dev": "nodemon src/index.ts"
+  }
+}
